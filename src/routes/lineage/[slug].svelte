@@ -32,6 +32,7 @@
   onMount(async () => {
 
     let url = "http://silverback.temple.edu/veg/airflow/api/v1/dags/rascl_" + lineage + "/dagRuns"
+    let queryUrl = url + "?order_by=execution_date"
     let dagRunId = '';
 
     // Get dagRun id of latest completed run (state not running)
@@ -41,7 +42,7 @@
     let headers = new Headers();
     headers.set('Authorization', 'Basic ' + btoa(username + ":" + password));
 
-    const res = await fetch(url, {
+    const res = await fetch(queryUrl, {
         method:'GET',
         headers: headers,
        });
