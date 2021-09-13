@@ -19,7 +19,8 @@
     "d3": "^7.0.1",
     "polka": "next",
     "ramda": "^0.27.1",
-    "sirv": "^1.0.0"
+    "sirv": "^1.0.0",
+    "svelte-awesome": "^2.3.2"
   },
   "devDependencies": {
     "@babel/core": "^7.0.0",
