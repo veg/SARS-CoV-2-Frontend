@@ -209,7 +209,7 @@
 <h1>Individual Results</h1>
 
 <div class="content">
-  {#each Object.keys(groupedTaskData) as group}
+  {#each Object.keys(groupedTaskData).sort() as group}
     <h2>{ group }</h2>
     <div class="grid gap-4 grid-cols-3">
       {#each R.sortBy(R.prop('method'))(Object.values(groupedTaskData[group])) as task}
