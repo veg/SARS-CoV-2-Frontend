@@ -12,6 +12,7 @@
   import { warning } from 'svelte-awesome/icons';
   import { onMount } from "svelte";
 	import * as R from "ramda";
+  import config from "../../../config.json";
 
 	export let lineage;
 	let dagData = [];
@@ -83,8 +84,8 @@
 
     let url = "http://silverback.temple.edu/veg/airflow/api/v1/dags/rascl_" + lineage + "/dagRuns"
     let queryUrl = url + "?order_by=execution_date"
-    let username = "datamonkey";
-    let password = "0cc4m5R0ck5";
+    let username = config.apiUserName;
+    let password = config.apiPassword;
     let dagRunId = null;
 
     let ignoredStates = ['running', 'failed', 'queued', 'none']

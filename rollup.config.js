@@ -73,6 +73,7 @@ export default {
       json({
         compact: true
       })
+
 		],
 
 		preserveEntrySignatures: false,
@@ -107,7 +108,11 @@ export default {
 			resolve({
 				dedupe: ['svelte']
 			}),
-			commonjs()
+			commonjs(),
+      json({
+        compact: true
+      })
+
 		],
 		external: Object.keys(pkg.dependencies).concat(require('module').builtinModules),
 		preserveEntrySignatures: 'strict',
