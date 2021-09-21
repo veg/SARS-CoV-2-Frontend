@@ -15,8 +15,9 @@
     "serve": "serve ___sapper__/export"
   },
   "dependencies": {
+    "@observablehq/plot": "0.1.0",
     "compression": "^1.7.1",
-    "d3": "^7.0.1",
+    "d3": "6",
     "polka": "next",
     "ramda": "^0.27.1",
     "sirv": "^1.0.0",
@@ -48,6 +49,7 @@
     "sapper": "^0.28.0",
     "svelte": "^3.17.3",
     "svelte-preprocess": "^4.8.0",
+    "svelte-select": "^4.4.2",
     "tailwindcss": "^2.2.9"
   }
 }

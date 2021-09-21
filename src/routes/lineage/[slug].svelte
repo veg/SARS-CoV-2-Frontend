@@ -1,28 +1,40 @@
 <script context="module">
+
 	export async function preload({ params }) {
      // the `slug` parameter is available because
      // this file is called [slug].svelte
      return { lineage: params.slug };
 	}
+
 </script>
 
 <script>
 
   import Icon from 'svelte-awesome/components/Icon.svelte'
   import { warning } from 'svelte-awesome/icons';
-  import { onMount } from "svelte";
-	import * as R from "ramda";
-  import config from "../../../config.json";
+  import { onMount, beforeUpdate } from "svelte";
+	import * as R from 'ramda';
+	import * as d3 from 'd3';
+  import * as Plot from '@observablehq/plot';
+  import config from '../../../config.json';
+  import Select from 'svelte-select';
 
 	export let lineage;
+  export let report;
+
 	let dagData = [];
 	let taskData = [];
   let groupedTaskData = {'': {}};
+  let summaryReport = {};
+  let summaryPlotItems = ['num_seqs', 'num_uniq_haps', 'tree_len_internal', 'tree_len_terminal', 'mean_dnds_leaf', 'mean_dnds_internal', 'num_sites', 'codon_num_var_sites', 'codon_num_var_sites_minor', 'prot_num_var_sites', 'prot_num_var_sites_minor', 'num_sites_pos_fel', 'num_sites_neg_fel', 'num_sites_pos_cfel', 'num_sites_neg_cfel', 'num_sites_directional', 'num_sites_coevolving', 'num_sites_meme', 'median_branches_meme'];
+  let summaryPlotContainer;
+  let plotSummarySelect = summaryPlotItems[0];
 
   let genes = ["nsp3","nsp4","3C","nsp6","nsp7","nsp8","nsp9","nsp10","helicase","exonuclease","endornase","S","E","M","N","ORF3a","ORF6","ORF7a","ORF8","RdRp","methyltransferase"]
   let methods = ["meme_full","fade","fel","relax","bgm","busted","meme","prime","cfel","absrel","slac"]
 
   let methodDict = {
+
       "meme_full" : {
           "vizLink": "meme",
           "fullName": "MEME Full",
@@ -67,28 +79,144 @@
           "vizLink": "slac",
           "fullName": "SLAC",
       }
+
   };
 
-  // selection_analyses_nsp2.meme_full
+  function handleSummarySelect(item) {
+    plotSummarySelect = item.detail.value;
+    plotSummary(report, summaryPlotContainer)
+  }
+
+  async function getSummaryResults(reportUrl) {
+
+    const report = await d3.csv(reportUrl);
+    return report;
+
+  }
+
   let taskNames = genes.flatMap(d => methods.map(v => "selection_analyses_" + d + "." + v))
 
+
+
   function getStateBGColor(task) {
+
     if(task.state == "success") {
       return "bg-green-400"
     } else {
       return "bg-red-400"
     }
+
+  }
+
+  function plotSummary(report, summaryPlotContainer) {
+
+    d3.select(".plot-container").select('svg').remove();
+
+    let width = 640;
+    R.forEach( d => d[plotSummarySelect] = parseFloat( d[plotSummarySelect] ) || 0, report);
+
+    let options = {
+      marginTop: 50,
+      marginLeft: 200,
+      marginBottom: 50,
+      width: width,
+      y : {
+        grid: true,
+        domain: R.map(d => d.gene, R.sortBy(R.prop(plotSummarySelect))(report))
+      },
+      marks: [
+        Plot.ruleX([0]),
+        Plot.barX(report, {y: "gene", x: plotSummarySelect })
+      ]
+    };
+
+    summaryPlotContainer.appendChild(Plot.plot(options));
+
+  }
+
+  function getSummaryInfo(report) {
+
+    let medianSeqs = R.pipe(
+                        R.map(d => parseInt(d.num_seqs)),
+                        R.filter(d => d),
+                        R.median
+                       )(report);
+
+    // TODO
+    // let medianReferenceSeqs = R.median(R.map(d => parseInt(d.num_seqs), report));
+
+    // Diversifying positive selection
+    let diversifyingSites = R.pipe(
+        R.map(d => parseInt(d.num_sites_pos_fel)),
+        R.filter(d => d),
+        R.sum
+      )(report); 
+
+    // TODO
+    let diversifyingSitesAllBranches = R.pipe(
+        R.map(d => parseInt(d.num_sites_pos_fel)),
+        R.filter(d => d),
+        R.sum
+      )(report); 
+
+    // Significant differences
+    let sigDiff = R.pipe(
+      R.map(d => parseInt(d.num_sites_pos_cfel)),
+      R.filter(d => d),
+      R.sum
+    )(report);
+
+    sigDiff += R.pipe(
+      R.map(d => parseInt(d.num_sites_neg_cfel)),
+      R.filter(d => d),
+      R.sum
+    )(report);
+
+    // TODO: Out of X successful runs
+    let directionalSelection = R.pipe(
+      R.map(d => parseInt(d.num_sites_directional)),
+      R.filter(d => d),
+      R.sum
+    )(report);
+
+    let coevolvingPairs = R.pipe(
+      R.map(d => parseInt(d.num_sites_coevolving)),
+      R.filter(d => d),
+      R.sum
+    )(report);
+
+    let purifyingSites = R.pipe(
+      R.map(d => parseInt(d.num_sites_neg_fel)),
+      R.filter(d => d),
+      R.sum
+    )(report);
+
+    // TODO Episodic Branch Selection
+    let episodicBranchSelection = null;
+
+    return {
+      medianSeqs: medianSeqs,
+      diversifyingSites: diversifyingSites,
+      diversifyingSitesAllBranches: diversifyingSitesAllBranches,
+      sigDiff: sigDiff,
+      directionalSelection: directionalSelection,
+      coevolvingPairs: coevolvingPairs,
+      purifyingSites: purifyingSites,
+      episodicBranchSelection: episodicBranchSelection,
+    }
+
   }
 
   onMount(async () => {
 
-    let url = "http://silverback.temple.edu/veg/airflow/api/v1/dags/rascl_" + lineage + "/dagRuns"
-    let queryUrl = url + "?order_by=execution_date"
+    let url = "http://silverback.temple.edu/veg/airflow/api/v1/dags/rascl_" + lineage + "/dagRuns";
+    let queryUrl = url + "?order_by=execution_date";
     let username = config.apiUserName;
     let password = config.apiPassword;
     let dagRunId = null;
 
     let ignoredStates = ['running', 'failed', 'queued', 'none']
+
 
     // Get dagRun id of latest completed run (state not running)
 
@@ -123,7 +251,7 @@
 
     const taskRes = await fetch(dagRunUrl, {
         method:'GET',
-        headers: headers,
+        headers: headers
        });
 
     const taskRawData = await taskRes.json();
@@ -131,12 +259,22 @@
     if (taskRes.status === 200) {
 
       taskData = R.filter(d=> R.includes(d.task_id, taskNames), taskRawData.task_instances)
+
       // Create results url
-      // http://data.hyphy.org/web/covid-19/selection-analyses/rascl/AY.12/scheduled__2021-08-22T00%3A00%3A00%2B00%3A00/sequences.N.MEME.json
       let baseResultsUrl = "http://data.hyphy.org/web/covid-19/selection-analyses/rascl/" + lineage + "/" + dagRunId + "/";
+
+      // Reports
+      let reportUrl = baseResultsUrl + "report.csv";
+      report = await getSummaryResults(reportUrl);
+      summaryReport = getSummaryInfo(report);
+
+    // Report Plots
+    plotSummary(report, summaryPlotContainer);
+
 
       R.forEach(d => {
           let [gene, method] = d.task_id.split('_')[2].split('.');
+          // if BGM, the filename is different
           d.resultsUrl = baseResultsUrl + 'sequences.' + gene + '.' + R.toUpper(method) + '.json';
           d.hyphyVisionUrl = "http://vision.hyphy.org/" + methodDict[method].vizLink + "?resultsUrl=" + encodeURIComponent(d.resultsUrl);
           d.gene = gene;
@@ -145,7 +283,6 @@
 
       groupedTaskData = R.groupBy(d => d.gene, taskData);
       groupedTaskData = R.map(g => R.indexBy(d => d.method, g), groupedTaskData)
-      console.log(groupedTaskData);
 
     } else {
 
@@ -159,6 +296,10 @@
 </script>
 
 <style global lang="postcss">
+
+  .plot-container {
+    overflow-x: scroll; 
+  }
 
 	h1 {
 		text-align: center;
@@ -205,6 +346,51 @@
 {/if}
 
 <h1>Summary</h1>
+
+
+<div class="grid gap-4 grid-cols-3">
+
+  <div class="row-span-1 text-center w-full bg-green-400">
+    <h3>Diversifying Positive Selection Along Internal Branches</h3>
+    <div>{ summaryReport.diversifyingSites }</div>
+  </div>
+
+  <div class="row-span-1 text-center w-full bg-green-400">
+    <h3>Diversifying Positive Selection Across All Branches</h3>
+    <div>{ summaryReport.diversifyingSitesAllBranches }</div>
+  </div>
+
+  <div class="row-span-1 text-center w-full bg-green-400">
+    <h3>Significant differences from reference sequences</h3>
+    <div>{ summaryReport.sigDiff }</div>
+  </div>
+
+  <div class="row-span-1 text-center w-full bg-green-400">
+    <h3>Directional Selection</h3>
+    <div>{ summaryReport.directionalSelection }</div>
+  </div>
+
+  <div class="row-span-1 text-center w-full bg-green-400">
+    <h3>Coevolution Pairs</h3>
+    <div>{ summaryReport.coevolvingPairs }</div>
+  </div>
+
+  <div class="row-span-1 text-center w-full bg-green-400">
+    <h3>Negative Selection</h3>
+    <div>{ summaryReport.purifyingSites }</div>
+  </div>
+
+  <div class="row-span-1 text-center w-full bg-green-400">
+    <h3>Episodic Branch Selection</h3>
+    <div>{ summaryReport.episodicBranchSelection }</div>
+  </div>
+
+</div>
+
+<div class="grid gap-4 grid-cols-2 items-center">
+  <div bind:this={ summaryPlotContainer } class="plot-container"></div>
+  <Select class="test" items={ summaryPlotItems } on:select={ handleSummarySelect } ></Select>
+</div>
 
 <h1>Individual Results</h1>
 

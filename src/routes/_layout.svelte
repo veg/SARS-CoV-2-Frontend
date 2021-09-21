@@ -17,7 +17,7 @@
 
 	main {
 		position: relative;
-		max-width: 56em;
+		max-width: 100em;
 		padding: 2em;
 		margin: 0 auto;
 		box-sizing: border-box;
@@ -25,7 +25,7 @@
 
 </style>
 
-<Nav {segment}/>
+<Nav {segment} />
 
 <div class="bg">
   <div class="bg2">
