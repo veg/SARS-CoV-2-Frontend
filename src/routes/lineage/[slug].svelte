@@ -274,8 +274,13 @@
 
       R.forEach(d => {
           let [gene, method] = d.task_id.split('_')[2].split('.');
+
           // if BGM, the filename is different
-          d.resultsUrl = baseResultsUrl + 'sequences.' + gene + '.' + R.toUpper(method) + '.json';
+          if(R.toUpper(method) == 'BGM') {
+            d.resultsUrl = baseResultsUrl + 'sequences.' + gene + '.combined.fas.' + R.toUpper(method) + '.json';
+          } else {
+            d.resultsUrl = baseResultsUrl + 'sequences.' + gene + '.' + R.toUpper(method) + '.json';
+          }
           d.hyphyVisionUrl = "http://vision.hyphy.org/" + methodDict[method].vizLink + "?resultsUrl=" + encodeURIComponent(d.resultsUrl);
           d.gene = gene;
           d.method = method;

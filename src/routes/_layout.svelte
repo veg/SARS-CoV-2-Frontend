@@ -5,6 +5,7 @@
 </script>
 
 <style>
+
   .bg {
     background-color: rgba(0,0,0,0.1);
     background-image: url(https://github.com/veg/datamonkey-js/raw/master/public/assets/img/repeat-bg_360.jpg);
